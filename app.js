@@ -2,6 +2,12 @@ const $ = (query) => document.querySelector(query);
 const canvas = $('canvas');
 const DELAY_MOVING = 500;
 
+function sleep(ms) {
+  return new Promise(resolve => {
+    return setTimeout(resolve, ms);
+  })
+}
+
 class Element {
   constructor(x, y, color) {
     this.width = 30;
@@ -75,9 +81,8 @@ class Invader extends Element {
     this.clearDraw();
     this.y += 30;
 
-    if (this.isAlive) {
+    if (this.isAlive)
       this.draw();
-    }
   }
 }
 
@@ -87,9 +92,9 @@ class Player extends Element {
     this.draw(x, y);
   }
 
-  shoot(invaders) {
+  async shoot(invaders) {
     const shot = new Shot(this.x, this.y - 30);
-    setInterval(() => {
+    while (shot.y > -30) {
       invaders.map(invader => {
         if (shot.isHitInvader(invader)) {
           invader.isAlive = false;
@@ -102,9 +107,9 @@ class Player extends Element {
       } else {
         shot.clearDraw();
         shot.y = -30;
-        clearInterval(this)
       }
-    }, 100)
+      await sleep(100);
+    }
   }
 }
 
@@ -134,9 +139,7 @@ class InvadersController {
   }
 
   move() {
-    setInterval(() => {
-      this[this.direction]();
-    }, DELAY_MOVING)
+    this[this.direction]();
   }
 
   moveRight() {
@@ -163,29 +166,63 @@ class InvadersController {
     for (let i = this.invaders.length - 1; i >= 0; i--) {
       this.invaders[i].moveDown();
     }
-    if(this.isMovingToRight){
+    if (this.isMovingToRight)
       this.direction = 'moveRight';
-    }else{
+    else
       this.direction = 'moveLeft';
-    }
   }
 }
 
-const invadersController = new InvadersController(10);
-invadersController.move();
+class Game {
+  constructor(invadersController, player) {
+    this.invadersController = invadersController;
+    this.player = player;
+  }
+
+  async play() {
+    alert('INSTRUÇÕES DO JOGO:\n\nSeta direita: Mover\nSeta esquerda: Mover\nBarra de espaço: Atirar\n\nNão deixe os invasores alcançarem a base!')
+    this.enablePlayer();
+    while (!this.isGameWon() && !this.isGameLost()) {
+      invadersController.move();
+      await sleep(DELAY_MOVING);
+    }
+    if(this.isGameWon()){
+      alert('Parabéns! Você impediu o ataque dos invasores!\n\nRecarregue a página para jogar novamente.');
+    }
+    if(this.isGameLost()){
+      alert('Essa não! Os invasores alcançaram a base! :/\n\nRecarregue a página para jogar novamente.');
+    }
+  }
+
+  isGameWon() {
+    const livingInvaders = this.invadersController.invaders.filter(invader => {
+      return invader.isAlive ? invader : undefined;
+    })
+    return livingInvaders.length === 0;
+  }
+
+  isGameLost() {
+    return this.invadersController.invaders[this.invadersController.invaders.length-1].y === canvas.height-30;
+  }
+
+  enablePlayer() {
+    document.addEventListener('keyup', async (event) => {
+      switch (event.key) {
+        case "ArrowRight":
+          this.player.moveRight();
+          break;
+        case "ArrowLeft":
+          this.player.moveLeft();
+          break;
+        case " ":
+          await this.player.shoot(invadersController.invaders);
+          break;
+      }
+    });
+  }
+}
 
 const player = new Player(180, 570);
-
-document.addEventListener('keydown', (event) => {
-  switch (event.key) {
-    case "ArrowRight":
-      player.moveRight();
-      break;
-    case "ArrowLeft":
-      player.moveLeft();
-      break;
-    case " ":
-      player.shoot(invadersController.invaders);
-      break;
-  }
-});
+const invadersController = new InvadersController(10);
+const game = new Game(invadersController, player);
+game.play();
