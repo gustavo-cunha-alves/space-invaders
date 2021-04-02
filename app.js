@@ -29,7 +29,7 @@ class Element {
 
     if (this.isAlive)
       this.draw();
-  
+
   }
 
   moveLeft() {
@@ -49,8 +49,19 @@ class Shot extends Element {
 
   moveUp() {
     this.clearDraw();
-    this.y -= 30;
+    if (this.y >= 0) {
+      this.y -= 30;
+    } else {
+      this.isAlive = false;
+    }
     this.draw();
+  }
+
+  isHitInvader(invader) {
+    return this.isAlive &&
+      invader.isAlive &&
+      this.x === invader.x &&
+      this.y === invader.y
   }
 }
 
@@ -79,16 +90,21 @@ class Player extends Element {
   shoot(invaders) {
     const shot = new Shot(this.x, this.y - 30);
     setInterval(() => {
-      for (let i = 0; i < invaders.length; i++) {
-        if (shot.isAlive && invaders[i].isAlive && shot.x === invaders[i].x && shot.y === invaders[i].y) {
-          invaders[i].isAlive = false;
+      invaders.map(invader => {
+        if (shot.isHitInvader(invader)) {
+          invader.isAlive = false;
           shot.isAlive = false;
         }
-      }
+      });
+
       if (shot.isAlive) {
         shot.moveUp();
+      } else {
+        shot.clearDraw();
+        shot.y = -30;
+        clearInterval(this)
       }
-    }, 70)
+    }, 100)
   }
 }
 
@@ -96,6 +112,7 @@ class InvadersController {
   constructor(maxInvaders) {
     this.invaders = this.generateInvaders(maxInvaders);
     this.isMovingToRight = true;
+    this.direction = 'moveRight';
   }
 
   generateInvaders(maxInvaders) {
@@ -118,11 +135,7 @@ class InvadersController {
 
   move() {
     setInterval(() => {
-      if (this.isMovingToRight) {
-        this.moveRight();
-      } else {
-        this.moveLeft();
-      }
+      this[this.direction]();
     }, DELAY_MOVING)
   }
 
@@ -131,8 +144,8 @@ class InvadersController {
       this.invaders[i].moveRight();
     }
     if (this.invaders[this.invaders.length - 1].x === canvas.width - 30) {
+      this.direction = 'moveDown';
       this.isMovingToRight = false;
-      this.moveDown();
     }
   }
 
@@ -141,14 +154,19 @@ class InvadersController {
       this.invaders[i].moveLeft();
     }
     if (this.invaders[0].x === 0) {
+      this.direction = 'moveDown'
       this.isMovingToRight = true;
-      this.moveDown();
     }
   }
 
   moveDown() {
     for (let i = this.invaders.length - 1; i >= 0; i--) {
       this.invaders[i].moveDown();
+    }
+    if(this.isMovingToRight){
+      this.direction = 'moveRight';
+    }else{
+      this.direction = 'moveLeft';
     }
   }
 }
